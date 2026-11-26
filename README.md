@@ -43,6 +43,7 @@
 
 ## Project Structure
 
+```
 studysync/
 ├── app.py                  # Flask application factory, routes, RBAC, and file handling
 ├── models.py               # SQLAlchemy models (User, Course, Task, TaskResource, StudySlot, AuditLog)
@@ -57,7 +58,7 @@ studysync/
     ├── register.html       # Student registration with daily study limit setup
     ├── dashboard.html      # Main workspace, tables, resource hub, and Student Assistant widget
     └── audit_logs.html     # Admin security and activity audit log viewer
-
+```
 
 Local Setup & Installation
 1. Clone the repository:
