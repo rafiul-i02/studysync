@@ -1,0 +1,640 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — StudySync{% endblock %}
+{% block content %}
+
+<style>
+  .grid-2 > * {
+    min-width: 0;
+  }
+  .card {
+    overflow-x: auto;
+  }
+  .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 8px;
+  }
+  .id-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #0369a1;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+    padding: 1px 6px;
+    border-radius: 6px;
+    margin-right: 5px;
+  }
+  .type-pill {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #0f766e;
+    background: #ccfbf1;
+    border: 1px solid #99f6e4;
+    padding: 1px 6px;
+    border-radius: 6px;
+    margin-left: 4px;
+  }
+  .file-sub {
+    font-size: 12px;
+    color: #64748b;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .action-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .action-row form {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .action-row select {
+    width: auto;
+    padding: 5px 8px;
+    font-size: 12.5px;
+  }
+  .focus-card {
+    border-left: 5px solid #0284c7;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(224, 242, 254, 0.72) 100%);
+  }
+  .focus-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(186, 230, 253, 0.9);
+    margin-top: 8px;
+    font-size: 13.5px;
+  }
+
+  /* Student Assistant Floating Widget */
+  .assistant-fab {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 999;
+    border-radius: 999px;
+    padding: 12px 18px;
+    font-weight: 700;
+    box-shadow: 0 10px 25px rgba(2, 132, 199, 0.32);
+  }
+  .assistant-panel {
+    display: none;
+    position: fixed;
+    right: 22px;
+    bottom: 76px;
+    width: min(390px, calc(100vw - 32px));
+    max-height: 72vh;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(12px);
+    border: 1px solid #bae6fd;
+    border-radius: 16px;
+    box-shadow: 0 16px 38px rgba(15, 23, 42, 0.18);
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .assistant-panel.open {
+    display: flex;
+  }
+  .assistant-header {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #fff;
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .assistant-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    background: #f0f9ff;
+    border-bottom: 1px solid #e0f2fe;
+  }
+  .assistant-chip {
+    font-size: 11.5px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    border: 1px solid #bae6fd;
+    background: #fff;
+    color: #0369a1;
+    cursor: pointer;
+  }
+  .assistant-messages {
+    padding: 12px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .msg-user {
+    align-self: flex-end;
+    background: #0284c7;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 12px 12px 2px 12px;
+    max-width: 85%;
+  }
+  .msg-bot {
+    align-self: flex-start;
+    background: #f1f5f9;
+    color: #0f172a;
+    padding: 9px 12px;
+    border-radius: 12px 12px 12px 2px;
+    max-width: 92%;
+    white-space: pre-line;
+    line-height: 1.45;
+  }
+  .assistant-form {
+    display: flex;
+    gap: 6px;
+    padding: 10px;
+    border-top: 1px solid #e2e8f0;
+    background: #fff;
+  }
+  .assistant-form input {
+    margin: 0;
+    flex: 1;
+    font-size: 13px;
+  }
+</style>
+
+{% if urgent_tasks %}
+  <div class="card focus-card">
+    <h3 style="margin-bottom: 4px; color: #0369a1;">Today's Focus & Urgent Deadlines (Next 24h / Overdue)</h3>
+    <p style="margin: 0 0 8px; font-size: 13px; color: #475569;">
+      Prioritize these active exams and assignments first:
+    </p>
+    {% for ut in urgent_tasks %}
+      <div class="focus-item">
+        <div>
+          <span class="id-tag">#{{ ut.id }}</span>
+          <strong>{{ ut.title }}</strong>
+          <span style="color:#475569;">({{ ut.course.code if ut.course else '-' }} · {{ ut.task_type }} · {{ ut.estimated_hours }}h)</span>
+        </div>
+        <div>
+          <span class="badge badge-{{ ut.priority }}">{{ ut.priority }}</span>
+          <span style="margin-left: 6px; font-weight: 600; color: #0f172a;">
+            Due: {{ ut.deadline.strftime('%Y-%m-%d %H:%M') }}
+          </span>
+          {% if ut.deadline < now %}
+            <span class="badge badge-blocked" style="margin-left: 4px;">Overdue</span>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="grid-4" style="margin-bottom: 18px;">
+  <div class="card stat-box" style="margin:0;">
+    <div class="stat-val">{{ total_tasks }}</div>
+    <div class="stat-lbl">Total Tasks</div>
+  </div>
+  <div class="card stat-box" style="margin:0;">
+    <div class="stat-val">{{ completed_tasks }} ({{ completion_pct }}%)</div>
+    <div class="stat-lbl">Completed Tasks</div>
+  </div>
+  <div class="card stat-box" style="margin:0;">
+    <div class="stat-val">{{ completed_slot_hours }}h / {{ remaining_hours }}h</div>
+    <div class="stat-lbl">Done Slots vs. Remaining Task Hrs</div>
+  </div>
+  <div class="card stat-box" style="margin:0;">
+    <div class="stat-val">{{ total_resources_count }}</div>
+    <div class="stat-lbl">Saved Resources</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>1. Add Course</h3>
+    <form method="POST" action="{{ url_for('add_course') }}">
+      <label>Course Code</label>
+      <input type="text" name="code" required placeholder="CSE-201">
+      <label>Course Title</label>
+      <input type="text" name="title" required placeholder="Data Structures & Algorithms">
+      <div style="margin-top: 12px;">
+        <button type="submit">Add Course</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>2. Add Exam / Assignment</h3>
+    <form method="POST" action="{{ url_for('add_task') }}">
+      <label>Course</label>
+      <select name="course_id" required>
+        <option value="">-- Select Course --</option>
+        {% for c in courses %}
+          <option value="{{ c.id }}">{{ c.code }} — {{ c.title }}</option>
+        {% endfor %}
+      </select>
+
+      <label>Title</label>
+      <input type="text" name="title" required placeholder="Midterm Prep / Lab Report 2">
+
+      <div class="grid-2" style="gap: 10px;">
+        <div>
+          <label>Type</label>
+          <select name="task_type">
+            <option value="assignment">Assignment</option>
+            <option value="exam">Exam</option>
+          </select>
+        </div>
+        <div>
+          <label>Priority</label>
+          <select name="priority">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2" style="gap: 10px;">
+        <div>
+          <label>Deadline</label>
+          <input type="datetime-local" name="deadline" required>
+        </div>
+        <div>
+          <label>Estimated Hours</label>
+          <input type="number" step="0.5" min="0.5" max="100" name="estimated_hours" value="2.0" required>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <button type="submit">Add Task</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <h3 style="margin:0;">Tasks & Deadlines</h3>
+    <form method="GET" action="{{ url_for('dashboard') }}" class="inline-form">
+      <input type="hidden" name="note_q" value="{{ note_search_q }}">
+      <input type="hidden" name="note_task_id" value="{{ note_task_filter }}">
+      <input type="text" name="q" value="{{ search_q }}" placeholder="Search title/code...">
+      <select name="course_id">
+        <option value="">All Courses</option>
+        {% for c in courses %}
+          <option value="{{ c.id }}" {% if course_filter == c.id|string %}selected{% endif %}>{{ c.code }}</option>
+        {% endfor %}
+      </select>
+      <select name="priority">
+        <option value="">All Priorities</option>
+        <option value="high" {% if priority_filter == 'high' %}selected{% endif %}>High</option>
+        <option value="medium" {% if priority_filter == 'medium' %}selected{% endif %}>Medium</option>
+        <option value="low" {% if priority_filter == 'low' %}selected{% endif %}>Low</option>
+      </select>
+      <select name="status">
+        <option value="">All Statuses</option>
+        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+        <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+        <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+      </select>
+      <button type="submit">Filter</button>
+      <a class="btn" href="{{ url_for('dashboard') }}" style="background:#64748b;">Reset</a>
+    </form>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Course</th>
+          <th>Type</th>
+          <th>Priority</th>
+          <th>Deadline</th>
+          <th>Est. Hrs</th>
+          <th>Files</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tasks %}
+          <tr>
+            <td>
+              <span class="id-tag">#{{ t.id }}</span>
+              <strong>{{ t.title }}</strong>
+            </td>
+            <td>{{ t.course.code if t.course else '-' }}</td>
+            <td>{{ t.task_type }}</td>
+            <td><span class="badge badge-{{ t.priority }}">{{ t.priority }}</span></td>
+            <td style="white-space: nowrap;">
+              {{ t.deadline.strftime('%Y-%m-%d %H:%M') }}
+              {% if t.status != 'completed' and t.deadline < now %}
+                <span class="badge badge-blocked">Overdue</span>
+              {% endif %}
+            </td>
+            <td>{{ t.estimated_hours }}h</td>
+            <td>{{ t.resources|length }}</td>
+            <td>{{ t.status }}</td>
+            <td>
+              <div class="action-row">
+                <form method="POST" action="{{ url_for('update_task_status', task_id=t.id) }}">
+                  <select name="status">
+                    <option value="pending" {% if t.status == 'pending' %}selected{% endif %}>pending</option>
+                    <option value="in_progress" {% if t.status == 'in_progress' %}selected{% endif %}>in_progress</option>
+                    <option value="completed" {% if t.status == 'completed' %}selected{% endif %}>completed</option>
+                  </select>
+                  <button type="submit" class="btn-success">Save</button>
+                </form>
+                <form method="POST" action="{{ url_for('delete_task', task_id=t.id) }}">
+                  <button type="submit" class="btn-danger">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="9">No tasks found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>Study Resources (PDF, Images & Docs)</h3>
+    <p style="font-size: 13px; color: #475569; margin-top: -4px;">
+      Save PDFs, whiteboard/note images (.png, .jpg, .jpeg, .webp), or docs (.docx, .doc, .txt) up to 5 MB.
+    </p>
+    <form method="POST" action="{{ url_for('upload_resource') }}" enctype="multipart/form-data">
+      <label>Select Exam / Assignment</label>
+      <select name="task_id" required>
+        <option value="">-- Choose Task --</option>
+        {% for t in all_tasks %}
+          <option value="{{ t.id }}">#{{ t.id }} · {{ t.course.code if t.course else '' }} — {{ t.title }} ({{ t.task_type }})</option>
+        {% endfor %}
+      </select>
+
+      <label>Resource Title (Optional)</label>
+      <input type="text" name="note_title" placeholder="e.g., Lecture 04 Slide, Board Photo, Lab Doc">
+
+      <label>File (PDF, Image, or Doc — max 5 MB)</label>
+      <input type="file" name="resource_file" accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.doc,.txt" required>
+
+      <div style="margin-top: 12px;">
+        <button type="submit">Save Resource</button>
+      </div>
+    </form>
+
+    <hr style="margin: 16px 0; border: none; border-top: 1px solid #e2e8f0;">
+    <form method="GET" action="{{ url_for('dashboard') }}" class="inline-form" style="margin-bottom: 10px;">
+      <input type="hidden" name="q" value="{{ search_q }}">
+      <input type="hidden" name="course_id" value="{{ course_filter }}">
+      <input type="hidden" name="priority" value="{{ priority_filter }}">
+      <input type="hidden" name="status" value="{{ status_filter }}">
+      <input type="text" name="note_q" value="{{ note_search_q }}" placeholder="Search title / filename...">
+      <select name="note_task_id">
+        <option value="">All Tasks</option>
+        {% for t in all_tasks %}
+          <option value="{{ t.id }}" {% if note_task_filter == t.id|string %}selected{% endif %}>#{{ t.id }} · {{ t.title }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Find</button>
+      <a class="btn" href="{{ url_for('dashboard') }}" style="background:#64748b;">Reset</a>
+    </form>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Title & File</th>
+            <th>Task</th>
+            <th>Size</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in resources %}
+            <tr>
+              <td style="max-width: 220px;">
+                <span class="id-tag">#{{ r.id }}</span>
+                <strong>{{ r.note_title }}</strong>
+                <span class="type-pill">{{ r._ext }}</span><br>
+                <span class="file-sub">{{ r.original_filename }}</span>
+              </td>
+              <td>{{ r.task.title if r.task else '-' }}</td>
+              <td style="white-space: nowrap;">{{ r.file_size_kb }} KB</td>
+              <td>
+                <div class="action-row">
+                  <a class="btn btn-success" href="{{ url_for('view_resource', resource_id=r.id) }}" target="_blank">
+                    {% if r._is_inline %}Open{% else %}Download{% endif %}
+                  </a>
+                  <form method="POST" action="{{ url_for('delete_resource', resource_id=r.id) }}">
+                    <button type="submit" class="btn-danger">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4">No matching study resources found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>3. Manual Study Slot (Conflict Checked — A02)</h3>
+    <form method="POST" action="{{ url_for('add_slot') }}">
+      <label>Link Task (Optional)</label>
+      <select name="task_id">
+        <option value="">-- General Study Block --</option>
+        {% for t in all_tasks %}
+          <option value="{{ t.id }}">#{{ t.id }} · {{ t.title }} ({{ t.course.code if t.course else '' }})</option>
+        {% endfor %}
+      </select>
+
+      <label>Date</label>
+      <input type="date" name="date" required>
+
+      <div class="grid-2" style="gap: 10px;">
+        <div>
+          <label>Start Time</label>
+          <input type="time" name="start_time" required>
+        </div>
+        <div>
+          <label>End Time</label>
+          <input type="time" name="end_time" required>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <button type="submit">Schedule Slot</button>
+      </div>
+    </form>
+
+    <hr style="margin: 18px 0; border: none; border-top: 1px solid #e2e8f0;">
+    <h4>Smart Auto-Scheduler (A02)</h4>
+    <p style="font-size: 13px; color: #475569;">
+      Automatically schedules pending/in-progress tasks before deadlines by priority & daily limit.
+    </p>
+    <form method="POST" action="{{ url_for('run_auto_schedule') }}">
+      <button type="submit" class="btn-success">Auto-Schedule Pending Tasks</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Scheduled Study Slots</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Duration</th>
+          <th>Task</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in slots %}
+          <tr>
+            <td style="white-space: nowrap;">
+              <span class="id-tag">#{{ s.id }}</span>
+              {{ s.date.strftime('%Y-%m-%d') }}
+            </td>
+            <td style="white-space: nowrap;">{{ s.start_time.strftime('%H:%M') }} - {{ s.end_time.strftime('%H:%M') }}</td>
+            <td>{{ s._hours }}h</td>
+            <td>{{ s.task.title if s.task else 'General Study' }}</td>
+            <td>
+              <span class="badge {% if s.status == 'completed' %}badge-allowed{% elif s.status == 'cancelled' %}badge-blocked{% else %}badge-low{% endif %}">
+                {{ s.status }}
+              </span>
+            </td>
+            <td>
+              <div class="action-row">
+                {% if s.status == 'scheduled' %}
+                  <form method="POST" action="{{ url_for('update_slot_status', slot_id=s.id) }}">
+                    <input type="hidden" name="status" value="completed">
+                    <button type="submit" class="btn-success">Mark Done</button>
+                  </form>
+                {% elif s.status == 'completed' %}
+                  <form method="POST" action="{{ url_for('update_slot_status', slot_id=s.id) }}">
+                    <input type="hidden" name="status" value="scheduled">
+                    <button type="submit">Reopen</button>
+                  </form>
+                {% endif %}
+                <form method="POST" action="{{ url_for('delete_slot', slot_id=s.id) }}">
+                  <button type="submit" class="btn-danger">Remove</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">No study slots scheduled yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<button type="button" class="assistant-fab" id="assistantToggleBtn" onclick="toggleAssistantPanel()">
+  Student Assistant
+</button>
+
+<div class="assistant-panel" id="assistantPanel" aria-label="Student Assistant Chatbot">
+  <div class="assistant-header">
+    <div>
+      <strong>StudySync Student Assistant</strong>
+      <div style="font-size: 11px; opacity: 0.9;">App Guide · Basic Math · Subject Concepts</div>
+    </div>
+    <button type="button" onclick="toggleAssistantPanel()" style="background: rgba(255,255,255,0.2); padding: 4px 10px; font-size: 12px;">
+      Close
+    </button>
+  </div>
+  <div class="assistant-chips">
+    <button type="button" class="assistant-chip" onclick="sendQuickPrompt('How do I use StudySync?')">App Guide</button>
+    <button type="button" class="assistant-chip" onclick="sendQuickPrompt('(85 + 78 + 92) / 3')">Avg Math</button>
+    <button type="button" class="assistant-chip" onclick="sendQuickPrompt('15% of 300')">Percentage</button>
+    <button type="button" class="assistant-chip" onclick="sendQuickPrompt('What is OOP?')">OOP</button>
+  </div>
+  <div class="assistant-messages" id="assistantMessages">
+    <div class="msg-bot">Hi! Ask me for a StudySync usage guide, basic math calculations, or clear explanations of core subjects.</div>
+  </div>
+  <form class="assistant-form" id="assistantForm" onsubmit="submitAssistantMessage(event)">
+    <input type="text" id="assistantInput" placeholder="Ask guide, math, or topic..." autocomplete="off" required>
+    <button type="submit">Send</button>
+  </form>
+</div>
+
+<script>
+  function toggleAssistantPanel() {
+    const panel = document.getElementById("assistantPanel");
+    panel.classList.toggle("open");
+    if (panel.classList.contains("open")) {
+      document.getElementById("assistantInput").focus();
+    }
+  }
+
+  function appendChatBubble(text, sender) {
+    const box = document.getElementById("assistantMessages");
+    const div = document.createElement("div");
+    div.className = sender === "user" ? "msg-user" : "msg-bot";
+    div.textContent = text;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function sendAssistantPrompt(text) {
+    const clean = (text || "").trim();
+    if (!clean) return;
+    appendChatBubble(clean, "user");
+    appendChatBubble("Thinking...", "bot");
+    const box = document.getElementById("assistantMessages");
+    const loadingBubble = box.lastElementChild;
+
+    try {
+      const res = await fetch("{{ url_for('assistant_chat') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: clean })
+      });
+      const data = await res.json();
+      loadingBubble.textContent = data.reply || "Could not generate a response.";
+    } catch (_err) {
+      loadingBubble.textContent = "Unable to reach the server right now. Please try again.";
+    }
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function sendQuickPrompt(promptText) {
+    const panel = document.getElementById("assistantPanel");
+    if (!panel.classList.contains("open")) {
+      panel.classList.add("open");
+    }
+    sendAssistantPrompt(promptText);
+  }
+
+  function submitAssistantMessage(event) {
+    event.preventDefault();
+    const input = document.getElementById("assistantInput");
+    const val = input.value;
+    input.value = "";
+    sendAssistantPrompt(val);
+  }
+</script>
+
+{% endblock %}
