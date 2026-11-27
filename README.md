@@ -5,7 +5,7 @@
 ## Live Links & Submission Resources
 - **Live Application (Render):** https://studysync-bscz.onrender.com/login
 - **GitHub Repository:** https://github.com/rafiul-i02/studysync
-- **YouTube Presentation & Demo:** `<YOUTUBE_URL>`
+- **YouTube Presentation & Demo:** https://youtu.be/aB2CWfr-5h8
 
 ---
 
